@@ -9,7 +9,6 @@ interface Project {
   uid: string;
   verified: boolean;
   email: string;
-  projectID: string;
 }
 
 const PAGE_SIZE = 20;
@@ -19,7 +18,7 @@ serve(async (req) => {
   const pathname = url.pathname;
 
   if (req.method === "POST" && pathname === "/save") {
-    const { url, projectName, username, uid, verified, email, projectID } = await req.json();
+    const { url, projectName, username, uid, verified, email } = await req.json();
 
     const project: Project = {
       url,
@@ -28,22 +27,32 @@ serve(async (req) => {
       uid,
       verified,
       email,
-      projectID,
     };
 
-    const key = generateKey(projectID);
+    const key = generateKey(uid);
     await kv.set(key, project);
 
     return new Response("Project saved successfully", { status: 201 });
+  }
+
+  if (req.method === "POST" && pathname === "/bulk-save") {
+    const projects: Project[] = await req.json();
+
+    for (const project of projects) {
+      const key = generateKey(project.uid);
+      await kv.set(key, project);
+    }
+
+    return new Response("Projects saved successfully", { status: 201 });
   }
 
   if (req.method === "GET" && pathname === "/projects") {
     const page = parseInt(url.searchParams.get("page") ?? "1");
     const startIndex = (page - 1) * PAGE_SIZE;
 
-    const iter = kv.list<Project>({ prefix: ["projects"] });
+    const iter = kv.list<Project>({ prefix: [] }); // Use a proper prefix if needed
 
-    const projects = [];
+    const projects: Project[] = [];
     let currentIndex = 0;
 
     for await (const entry of iter) {
