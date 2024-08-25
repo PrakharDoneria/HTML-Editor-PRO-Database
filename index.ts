@@ -7,7 +7,7 @@ async function getNextProjectId(): Promise<number> {
   const idKey = ["meta", "nextProjectId"];
   const result = await kv.get(idKey);
   const nextId = result?.value || 0;
-  await kv.set(idKey, nextId + 1); // Increment for next use
+  await kv.set(idKey, nextId + 1);
   return nextId;
 }
 
@@ -25,7 +25,7 @@ serve(async (req) => {
         File: fileUrl,
         FileName: projectName,
         Username: username,
-        UID: uid,  // Client-side UID
+        UID: uid,
         Verified: verified,
         Email: email || "",
         Download: "0"
@@ -44,14 +44,12 @@ serve(async (req) => {
     try {
       const projects: any[] = [];
 
-      // Fetch all projects from the database
       for await (const entry of kv.list({ prefix: ["projects"] })) {
         const key = entry.key;
         const value = entry.value;
         projects.push({ projectId: key[1], ...value });
       }
 
-      // Sort projects by projectId in descending order and limit to the latest 20
       projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
       const latestProjects = projects.slice(0, 20);
 
@@ -60,6 +58,27 @@ serve(async (req) => {
     } catch (error) {
       console.error("Error fetching projects:", error);
       return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), { status: 500 });
+    }
+  }
+
+  if (path === "/leaderboard" && req.method === "GET") {
+    try {
+      const projects: any[] = [];
+
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        const key = entry.key;
+        const value = entry.value;
+        projects.push({ projectId: key[1], ...value });
+      }
+
+      projects.sort((a, b) => parseInt(b.Download) - parseInt(a.Download));
+      const topProjects = projects.slice(0, 10);
+
+      return new Response(JSON.stringify({ status: "success", projects: topProjects }), { status: 200 });
+
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch leaderboard." }), { status: 500 });
     }
   }
 
@@ -72,7 +91,7 @@ serve(async (req) => {
       const result = await kv.get(key);
 
       if (result?.value) {
-        if (result.value.UID === uid) { // Check UID from the data
+        if (result.value.UID === uid) {
           await kv.delete(key);
           return new Response(JSON.stringify({ status: "success", message: "Project deleted." }), { status: 200 });
         } else {
@@ -119,7 +138,7 @@ serve(async (req) => {
       for await (const entry of kv.list({ prefix: ["projects"] })) {
         await kv.delete(entry.key);
       }
-      await kv.delete(["meta", "nextProjectId"]); // Reset the ID counter
+      await kv.delete(["meta", "nextProjectId"]);
       return new Response(JSON.stringify({ status: "success", message: "Database cleaned." }), { status: 200 });
       
     } catch (error) {
