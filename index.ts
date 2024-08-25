@@ -2,19 +2,6 @@ import { serve } from "https://deno.land/std/http/server.ts";
 
 const kv = await Deno.openKv();
 
-// Initialize projects to ensure each has a 'download' key
-async function initializeProjects() {
-  const iterator = kv.list({ prefix: ["projects"] });
-  for await (const { key, value } of iterator) {
-    if (!value.download) {
-      await kv.set(key, { ...value, download: "0" });
-    }
-  }
-}
-
-// Call the initialization function when the server starts
-await initializeProjects();
-
 async function handleRequest(req: Request) {
   const url = new URL(req.url);
   const { pathname, searchParams } = url;
@@ -83,7 +70,7 @@ async function handleRequest(req: Request) {
       await kv.set(key, { ...project.value, download: (downloadCount + 1).toString() });
       return new Response("Download count increased", { status: 200 });
     } else {
-      // If the download key does not exist, initialize it
+      // Initialize download count if project does not exist
       const value = {
         ...project.value,
         download: "1"
@@ -91,6 +78,16 @@ async function handleRequest(req: Request) {
       await kv.set(key, value);
       return new Response("Download count initialized and increased", { status: 200 });
     }
+  }
+
+  if (pathname === "/clean" && req.method === "DELETE") {
+    const iterator = kv.list({ prefix: ["projects"] });
+
+    for await (const { key } of iterator) {
+      await kv.delete(key);
+    }
+
+    return new Response("Database cleaned successfully", { status: 200 });
   }
 
   return new Response("Not Found", { status: 404 });
