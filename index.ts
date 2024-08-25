@@ -1,5 +1,4 @@
 import express from "npm:express@4";
-import { v4 as uuidv4 } from "npm:uuid@8";
 import { openKv } from "https://deno.land/x/kv/mod.ts";
 
 const app = express();
@@ -10,12 +9,21 @@ const PORT = 8000;
 // Initialize the KV store
 const kv = await openKv();
 
+// Function to get the next available project ID
+async function getNextProjectId(): Promise<number> {
+  const idKey = ["meta", "nextProjectId"];
+  const result = await kv.get(idKey);
+  const nextId = result.value || 0;
+  await kv.set(idKey, nextId + 1);  // Increment for next use
+  return nextId;
+}
+
 app.post("/save", async (req, res) => {
   try {
     const data = req.body;
     const { url: fileUrl, projectName, username, uid, verified, email } = data;
 
-    const projectId = uuidv4();
+    const projectId = await getNextProjectId();
     const projectData = {
       File: fileUrl,
       FileName: projectName,
@@ -26,9 +34,9 @@ app.post("/save", async (req, res) => {
       Download: "0"
     };
 
-    await kv.set(["projects", projectId], projectData);
+    await kv.set(["projects", projectId.toString()], projectData);
 
-    res.status(201).json({ status: "success", projectId });
+    res.status(201).json({ status: "success", projectId: projectId.toString() });
   } catch (error) {
     console.error("Error saving project:", error);
     res.status(500).json({ status: "error", message: "Failed to save project." });
@@ -40,7 +48,7 @@ app.get("/projects", async (req, res) => {
     const startAfter = req.query.startAfter || "0";
     const startKey = ["projects", startAfter];
     const projects: any[] = [];
-
+    
     for await (const [key, value] of kv.list({ prefix: ["projects"], startAfter: startKey, limit: 20 })) {
       projects.push({ projectId: key[1], ...value });
     }
@@ -107,6 +115,7 @@ app.get("/clean", async (req, res) => {
     for await (const [key] of kv.list({ prefix: ["projects"] })) {
       await kv.delete(key);
     }
+    await kv.delete(["meta", "nextProjectId"]);  // Reset the ID counter
     res.status(200).json({ status: "success", message: "Database cleaned." });
   } catch (error) {
     console.error("Error cleaning database:", error);
