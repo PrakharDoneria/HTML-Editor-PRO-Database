@@ -82,17 +82,17 @@ serve(async (req) => {
 
   if (path === "/search" && req.method === "GET") {
     try {
-      const query = url.searchParams.get("q") || "";
+      const query = (url.searchParams.get("q") || "").toLowerCase();
       const projects: any[] = [];
       
       for await (const entry of kv.list({ prefix: ["projects"] })) {
         const key = entry.key;
         const value = entry.value;
-        if (
-          value.FileName.toLowerCase().includes(query.toLowerCase()) ||
-          value.Username.toLowerCase().includes(query.toLowerCase()) ||
-          value.Email.toLowerCase().includes(query.toLowerCase())
-        ) {
+        const fileName = value.FileName.toLowerCase();
+        const username = value.Username.toLowerCase();
+        const email = value.Email.toLowerCase();
+
+        if (fileName.includes(query) || username.includes(query) || email.includes(query)) {
           projects.push({ projectId: key[1], ...value });
         }
       }
