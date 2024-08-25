@@ -1,88 +1,99 @@
-import { serve } from "https://deno.land/std@0.195.0/http/server.ts";
+import { serve } from "https://deno.land/std/http/server.ts";
 
 const kv = await Deno.openKv();
 
-interface Project {
-  url: string;
-  projectName: string;
-  username: string;
-  uid: string;
-  verified: boolean;
-  email: string;
+// Initialize projects to ensure each has a 'download' key
+async function initializeProjects() {
+  const iterator = kv.list({ prefix: ["projects"] });
+  for await (const { key, value } of iterator) {
+    if (!value.download) {
+      await kv.set(key, { ...value, download: "0" });
+    }
+  }
 }
 
-const PAGE_SIZE = 20;
+// Call the initialization function when the server starts
+await initializeProjects();
 
-serve(async (req) => {
+async function handleRequest(req: Request) {
   const url = new URL(req.url);
-  const pathname = url.pathname;
+  const { pathname, searchParams } = url;
 
-  if (req.method === "POST" && pathname === "/save") {
-    const { url, projectName, username, uid, verified, email } = await req.json();
-
-    const project: Project = {
+  if (pathname === "/save" && req.method === "POST") {
+    const body = await req.json();
+    const {
       url,
       projectName,
       username,
       uid,
       verified,
       email,
+      projectId
+    } = body;
+
+    const key = ["projects", projectId];
+    const value = {
+      url,
+      projectName,
+      username,
+      verified,
+      email,
+      download: "0", // Initialize download count
+      projectId
     };
+    await kv.set(key, value);
 
-    const key = generateKey(uid);
-    await kv.set(key, project);
-
-    return new Response("Project saved successfully", { status: 201 });
+    return new Response("Project saved successfully", { status: 200 });
   }
 
-  if (req.method === "POST" && pathname === "/bulk-save") {
-    const projects: Project[] = await req.json();
+  if (pathname === "/projects" && req.method === "GET") {
+    const startAfter = parseInt(searchParams.get("startAfter") || "0", 10);
+    const limit = 20;
 
-    for (const project of projects) {
-      const key = generateKey(project.uid);
-      await kv.set(key, project);
+    const iterator = kv.list({ prefix: ["projects"], start: startAfter.toString(), end: (startAfter + limit).toString() });
+    const projects = [];
+
+    for await (const { key, value } of iterator) {
+      projects.push(value);
     }
 
-    return new Response("Projects saved successfully", { status: 201 });
+    return new Response(JSON.stringify(projects), { status: 200 });
   }
 
-  if (req.method === "GET" && pathname === "/projects") {
-    const page = parseInt(url.searchParams.get("page") ?? "1");
-    const startIndex = (page - 1) * PAGE_SIZE;
+  if (pathname === "/delete" && req.method === "DELETE") {
+    const { projectId, uid } = await req.json();
+    const key = ["projects", projectId];
+    const project = await kv.get(key);
 
-    const iter = kv.list<Project>({ prefix: [] }); // Use a proper prefix if needed
-
-    const projects: Project[] = [];
-    let currentIndex = 0;
-
-    for await (const entry of iter) {
-      if (currentIndex >= startIndex) {
-        projects.push(entry.value);
-        if (projects.length >= PAGE_SIZE) break;
-      }
-      currentIndex++;
-    }
-
-    return new Response(JSON.stringify(projects), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  if (req.method === "DELETE" && pathname === "/delete") {
-    const { projectID, uid } = await req.json();
-    const key = generateKey(projectID);
-    const result = await kv.get<Project>(key);
-
-    if (result.value && result.value.uid === uid) {
+    if (project.value && project.value.uid === uid) {
       await kv.delete(key);
       return new Response("Project deleted successfully", { status: 200 });
     } else {
-      return new Response("Project not found or unauthorized", { status: 404 });
+      return new Response("Unauthorized or project not found", { status: 404 });
+    }
+  }
+
+  if (pathname === "/increase" && req.method === "GET") {
+    const projectId = searchParams.get("projectId");
+    const key = ["projects", projectId];
+
+    const project = await kv.get(key);
+    if (project.value) {
+      const downloadCount = parseInt(project.value.download || "0", 10);
+      await kv.set(key, { ...project.value, download: (downloadCount + 1).toString() });
+      return new Response("Download count increased", { status: 200 });
+    } else {
+      // If the download key does not exist, initialize it
+      const value = {
+        ...project.value,
+        download: "1"
+      };
+      await kv.set(key, value);
+      return new Response("Download count initialized and increased", { status: 200 });
     }
   }
 
   return new Response("Not Found", { status: 404 });
-});
+}
 
-const generateKey = (projectID: string) => ["projects", projectID];
+serve(handleRequest);
