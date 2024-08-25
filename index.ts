@@ -1,5 +1,4 @@
 import express from "npm:express@4";
-import { openKv } from "https://deno.land/x/kv/mod.ts";
 
 const app = express();
 app.use(express.json());
