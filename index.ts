@@ -1,10 +1,14 @@
 import express from "npm:express@4";
 import { v4 as uuidv4 } from "npm:uuid@8";
+import { openKv } from "https://deno.land/x/kv/mod.ts";
 
 const app = express();
 app.use(express.json());
 
 const PORT = 8000;
+
+// Initialize the KV store
+const kv = await openKv();
 
 app.post("/save", async (req, res) => {
   try {
@@ -16,7 +20,7 @@ app.post("/save", async (req, res) => {
       File: fileUrl,
       FileName: projectName,
       Username: username,
-      UID: uid,  
+      UID: uid,  // Client-side UID
       Verified: verified,
       Email: email || "",
       Download: "0"
@@ -56,7 +60,7 @@ app.delete("/delete", async (req, res) => {
     const result = await kv.get(key);
 
     if (result.value) {
-      if (result.value.UID === uid) { 
+      if (result.value.UID === uid) {  // Check UID from the data
         await kv.delete(key);
         res.status(200).json({ status: "success", message: "Project deleted." });
       } else {
