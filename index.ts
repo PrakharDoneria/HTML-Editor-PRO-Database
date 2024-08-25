@@ -42,15 +42,18 @@ serve(async (req) => {
 
   if (path === "/projects" && req.method === "GET") {
     try {
-      const startAfter = url.searchParams.get("startAfter") || "0";
-      const startKey = ["projects", startAfter];
       const projects: any[] = [];
 
-      for await (const [key, value] of kv.list({ prefix: ["projects"], startAfter: startKey, limit: 20 })) {
+      // Fetch all projects and sort them by projectId in descending order
+      for await (const [key, value] of kv.list({ prefix: ["projects"] })) {
         projects.push({ projectId: key[1], ...value });
       }
 
-      return new Response(JSON.stringify({ status: "success", projects }), { status: 200 });
+      // Sort projects by projectId in descending order and limit to the latest 20
+      projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
+      const latestProjects = projects.slice(0, 20);
+
+      return new Response(JSON.stringify({ status: "success", projects: latestProjects }), { status: 200 });
 
     } catch (error) {
       console.error("Error fetching projects:", error);
