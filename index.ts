@@ -46,7 +46,8 @@ serve(async (req) => {
 
       // Fetch all projects from the database
       for await (const entry of kv.list({ prefix: ["projects"] })) {
-        const [key, value] = entry;
+        const key = entry.key;
+        const value = entry.value;
         projects.push({ projectId: key[1], ...value });
       }
 
@@ -115,8 +116,8 @@ serve(async (req) => {
 
   if (path === "/clean" && req.method === "GET") {
     try {
-      for await (const [key] of kv.list({ prefix: ["projects"] })) {
-        await kv.delete(key);
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        await kv.delete(entry.key);
       }
       await kv.delete(["meta", "nextProjectId"]); // Reset the ID counter
       return new Response(JSON.stringify({ status: "success", message: "Database cleaned." }), { status: 200 });
