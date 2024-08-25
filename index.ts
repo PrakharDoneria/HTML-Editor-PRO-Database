@@ -41,14 +41,17 @@ serve(async (req) => {
   }
 
   if (path === "/projects" && req.method === "GET") {
+
+  if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
-      for await (const entry of kv.list({ prefix: ["projects"] })) {
-        const key = entry.key;
-        const value = entry.value;
+
+      // Fetch all projects and sort them by projectId in descending order
+      for await (const [key, value] of kv.list({ prefix: ["projects"] })) {
         projects.push({ projectId: key[1], ...value });
       }
 
+      // Sort projects by projectId in descending order and limit to the latest 20
       projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
       const latestProjects = projects.slice(0, 20);
 
@@ -59,7 +62,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), { status: 500 });
     }
   }
-
+    
   if (path === "/leaderboard" && req.method === "GET") {
     try {
       const projects: any[] = [];
