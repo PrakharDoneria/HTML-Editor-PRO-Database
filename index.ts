@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std/http/server.ts";
+import { v4 as uuidv4 } from "https://deno.land/std/uuid/mod.ts"; 
 
 const kv = await Deno.openKv();
 
@@ -14,9 +15,11 @@ async function handleRequest(req: Request) {
       username,
       uid,
       verified,
-      email,
-      projectId
+      email
     } = body;
+
+    
+    const projectId = uuidv4.generate();
 
     const key = ["projects", projectId];
     const value = {
@@ -25,12 +28,12 @@ async function handleRequest(req: Request) {
       username,
       verified,
       email,
-      download: "0", // Initialize download count
+      download: "0", 
       projectId
     };
     await kv.set(key, value);
 
-    return new Response("Project saved successfully", { status: 200 });
+    return new Response(JSON.stringify({ projectId }), { status: 200 });
   }
 
   if (pathname === "/projects" && req.method === "GET") {
@@ -70,7 +73,7 @@ async function handleRequest(req: Request) {
       await kv.set(key, { ...project.value, download: (downloadCount + 1).toString() });
       return new Response("Download count increased", { status: 200 });
     } else {
-      // Initialize download count if project does not exist
+      
       const value = {
         ...project.value,
         download: "1"
