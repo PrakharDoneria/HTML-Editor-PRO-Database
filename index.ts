@@ -71,7 +71,7 @@ serve(async (req) => {
         projects.push({ projectId: key[1], ...value });
       }
 
-      projects.sort((a, b) => parseInt(b.Download) - parseInt(a.Download));
+      projects.sort((a, b) => parseInt(a.Download) - parseInt(b.Download));
       const topProjects = projects.slice(0, 10);
 
       return new Response(JSON.stringify({ status: "success", projects: topProjects }), { status: 200 });
