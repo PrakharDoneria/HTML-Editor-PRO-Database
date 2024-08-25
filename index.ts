@@ -43,7 +43,6 @@ serve(async (req) => {
   if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
-
       for await (const entry of kv.list({ prefix: ["projects"] })) {
         const key = entry.key;
         const value = entry.value;
@@ -64,7 +63,6 @@ serve(async (req) => {
   if (path === "/leaderboard" && req.method === "GET") {
     try {
       const projects: any[] = [];
-
       for await (const entry of kv.list({ prefix: ["projects"] })) {
         const key = entry.key;
         const value = entry.value;
@@ -79,6 +77,33 @@ serve(async (req) => {
     } catch (error) {
       console.error("Error fetching leaderboard:", error);
       return new Response(JSON.stringify({ status: "error", message: "Failed to fetch leaderboard." }), { status: 500 });
+    }
+  }
+
+  if (path === "/search" && req.method === "GET") {
+    try {
+      const query = url.searchParams.get("q") || "";
+      const projects: any[] = [];
+      
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        const key = entry.key;
+        const value = entry.value;
+        if (
+          value.FileName.toLowerCase().includes(query.toLowerCase()) ||
+          value.Username.toLowerCase().includes(query.toLowerCase()) ||
+          value.Email.toLowerCase().includes(query.toLowerCase())
+        ) {
+          projects.push({ projectId: key[1], ...value });
+        }
+      }
+
+      const matchingProjects = projects.slice(0, 25);
+
+      return new Response(JSON.stringify({ status: "success", projects: matchingProjects }), { status: 200 });
+
+    } catch (error) {
+      console.error("Error searching projects:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to search projects." }), { status: 500 });
     }
   }
 
