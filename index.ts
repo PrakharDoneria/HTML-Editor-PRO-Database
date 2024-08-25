@@ -43,13 +43,12 @@ serve(async (req) => {
   if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
-
-      // Fetch all projects and sort them by projectId in descending order
-      for await (const [key, value] of kv.list({ prefix: ["projects"] })) {
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        const key = entry.key;
+        const value = entry.value;
         projects.push({ projectId: key[1], ...value });
       }
 
-      // Sort projects by projectId in descending order and limit to the latest 20
       projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
       const latestProjects = projects.slice(0, 20);
 
