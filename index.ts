@@ -41,8 +41,6 @@ serve(async (req) => {
   }
 
   if (path === "/projects" && req.method === "GET") {
-
-  if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
 
@@ -62,7 +60,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), { status: 500 });
     }
   }
-    
+
   if (path === "/leaderboard" && req.method === "GET") {
     try {
       const projects: any[] = [];
@@ -152,30 +150,4 @@ serve(async (req) => {
         return new Response(JSON.stringify({ status: "success", download: (downloadCount + 1).toString() }), { status: 200 });
       } else {
         await kv.set(key, { ...result.value, Download: "1" });
-        return new Response(JSON.stringify({ status: "success", download: "1" }), { status: 200 });
-      }
-
-    } catch (error) {
-      console.error("Error increasing download count:", error);
-      return new Response(JSON.stringify({ status: "error", message: "Failed to increase download count." }), { status: 500 });
-    }
-  }
-
-  if (path === "/clean" && req.method === "GET") {
-    try {
-      for await (const entry of kv.list({ prefix: ["projects"] })) {
-        await kv.delete(entry.key);
-      }
-      await kv.delete(["meta", "nextProjectId"]);
-      return new Response(JSON.stringify({ status: "success", message: "Database cleaned." }), { status: 200 });
-      
-    } catch (error) {
-      console.error("Error cleaning database:", error);
-      return new Response(JSON.stringify({ status: "error", message: "Failed to clean database." }), { status: 500 });
-    }
-  }
-
-  return new Response("Not Found", { status: 404 });
-});
-
-console.log("Server running on http://localhost:8000/");
+        return new Response(JSON.str
