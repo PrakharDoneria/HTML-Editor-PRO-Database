@@ -1,127 +1,129 @@
-import express from "npm:express@4";
+import { serve } from "https://deno.land/std@0.167.0/http/server.ts";
+import { v4 } from "https://deno.land/std@0.167.0/uuid/mod.ts";
 
-const app = express();
-app.use(express.json());
+const kv = await Deno.openKv();
 
-const PORT = 8000;
-
-// Initialize the KV store
-const kv = await openKv();
-
-// Function to get the next available project ID
 async function getNextProjectId(): Promise<number> {
   const idKey = ["meta", "nextProjectId"];
   const result = await kv.get(idKey);
-  const nextId = result.value || 0;
-  await kv.set(idKey, nextId + 1);  // Increment for next use
+  const nextId = result?.value || 0;
+  await kv.set(idKey, nextId + 1); // Increment for next use
   return nextId;
 }
 
-app.post("/save", async (req, res) => {
-  try {
-    const data = req.body;
-    const { url: fileUrl, projectName, username, uid, verified, email } = data;
+serve(async (req) => {
+  const url = new URL(req.url);
+  const path = url.pathname;
 
-    const projectId = await getNextProjectId();
-    const projectData = {
-      File: fileUrl,
-      FileName: projectName,
-      Username: username,
-      UID: uid,  // Client-side UID
-      Verified: verified,
-      Email: email || "",
-      Download: "0"
-    };
+  if (path === "/save" && req.method === "POST") {
+    try {
+      const data = await req.json();
+      const { url: fileUrl, projectName, username, uid, verified, email } = data;
 
-    await kv.set(["projects", projectId.toString()], projectData);
+      const projectId = await getNextProjectId();
+      const projectData = {
+        File: fileUrl,
+        FileName: projectName,
+        Username: username,
+        UID: uid,  // Client-side UID
+        Verified: verified,
+        Email: email || "",
+        Download: "0"
+      };
 
-    res.status(201).json({ status: "success", projectId: projectId.toString() });
-  } catch (error) {
-    console.error("Error saving project:", error);
-    res.status(500).json({ status: "error", message: "Failed to save project." });
-  }
-});
+      await kv.set(["projects", projectId.toString()], projectData);
+      return new Response(JSON.stringify({ status: "success", projectId: projectId.toString() }), { status: 201 });
 
-app.get("/projects", async (req, res) => {
-  try {
-    const startAfter = req.query.startAfter || "0";
-    const startKey = ["projects", startAfter];
-    const projects: any[] = [];
-    
-    for await (const [key, value] of kv.list({ prefix: ["projects"], startAfter: startKey, limit: 20 })) {
-      projects.push({ projectId: key[1], ...value });
+    } catch (error) {
+      console.error("Error saving project:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to save project." }), { status: 500 });
     }
-
-    res.status(200).json({ status: "success", projects });
-  } catch (error) {
-    console.error("Error fetching projects:", error);
-    res.status(500).json({ status: "error", message: "Failed to fetch projects." });
   }
-});
 
-app.delete("/delete", async (req, res) => {
-  try {
-    const { projectId, uid } = req.body;
+  if (path === "/projects" && req.method === "GET") {
+    try {
+      const startAfter = url.searchParams.get("startAfter") || "0";
+      const startKey = ["projects", startAfter];
+      const projects: any[] = [];
 
-    const key = ["projects", projectId];
-    const result = await kv.get(key);
-
-    if (result.value) {
-      if (result.value.UID === uid) {  // Check UID from the data
-        await kv.delete(key);
-        res.status(200).json({ status: "success", message: "Project deleted." });
-      } else {
-        res.status(403).json({ status: "error", message: "Unauthorized." });
+      for await (const [key, value] of kv.list({ prefix: ["projects"], startAfter: startKey, limit: 20 })) {
+        projects.push({ projectId: key[1], ...value });
       }
-    } else {
-      res.status(404).json({ status: "error", message: "Project not found." });
+
+      return new Response(JSON.stringify({ status: "success", projects }), { status: 200 });
+
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), { status: 500 });
     }
-  } catch (error) {
-    console.error("Error deleting project:", error);
-    res.status(500).json({ status: "error", message: "Failed to delete project." });
   }
-});
 
-app.get("/increase", async (req, res) => {
-  try {
-    const projectId = req.query.projectId;
+  if (path === "/delete" && req.method === "DELETE") {
+    try {
+      const data = await req.json();
+      const { projectId, uid } = data;
 
-    if (!projectId) {
-      res.status(400).json({ status: "error", message: "Missing projectId." });
-      return;
+      const key = ["projects", projectId];
+      const result = await kv.get(key);
+
+      if (result?.value) {
+        if (result.value.UID === uid) { // Check UID from the data
+          await kv.delete(key);
+          return new Response(JSON.stringify({ status: "success", message: "Project deleted." }), { status: 200 });
+        } else {
+          return new Response(JSON.stringify({ status: "error", message: "Unauthorized." }), { status: 403 });
+        }
+      } else {
+        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { status: 404 });
+      }
+
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to delete project." }), { status: 500 });
     }
-
-    const key = ["projects", projectId];
-    const result = await kv.get(key);
-
-    if (result.value) {
-      const downloadCount = parseInt(result.value.Download || "0", 10);
-      await kv.set(key, { ...result.value, Download: (downloadCount + 1).toString() });
-
-      res.status(200).json({ status: "success", download: (downloadCount + 1).toString() });
-    } else {
-      await kv.set(key, { ...result.value, Download: "1" });
-      res.status(200).json({ status: "success", download: "1" });
-    }
-  } catch (error) {
-    console.error("Error increasing download count:", error);
-    res.status(500).json({ status: "error", message: "Failed to increase download count." });
   }
-});
 
-app.get("/clean", async (req, res) => {
-  try {
-    for await (const [key] of kv.list({ prefix: ["projects"] })) {
-      await kv.delete(key);
+  if (path === "/increase" && req.method === "GET") {
+    try {
+      const projectId = url.searchParams.get("projectId");
+
+      if (!projectId) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { status: 400 });
+      }
+
+      const key = ["projects", projectId];
+      const result = await kv.get(key);
+
+      if (result?.value) {
+        const downloadCount = parseInt(result.value.Download || "0", 10);
+        await kv.set(key, { ...result.value, Download: (downloadCount + 1).toString() });
+        return new Response(JSON.stringify({ status: "success", download: (downloadCount + 1).toString() }), { status: 200 });
+      } else {
+        await kv.set(key, { ...result.value, Download: "1" });
+        return new Response(JSON.stringify({ status: "success", download: "1" }), { status: 200 });
+      }
+
+    } catch (error) {
+      console.error("Error increasing download count:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to increase download count." }), { status: 500 });
     }
-    await kv.delete(["meta", "nextProjectId"]);  // Reset the ID counter
-    res.status(200).json({ status: "success", message: "Database cleaned." });
-  } catch (error) {
-    console.error("Error cleaning database:", error);
-    res.status(500).json({ status: "error", message: "Failed to clean database." });
   }
+
+  if (path === "/clean" && req.method === "GET") {
+    try {
+      for await (const [key] of kv.list({ prefix: ["projects"] })) {
+        await kv.delete(key);
+      }
+      await kv.delete(["meta", "nextProjectId"]); // Reset the ID counter
+      return new Response(JSON.stringify({ status: "success", message: "Database cleaned." }), { status: 200 });
+      
+    } catch (error) {
+      console.error("Error cleaning database:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to clean database." }), { status: 500 });
+    }
+  }
+
+  return new Response("Not Found", { status: 404 });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}/`);
-});
+console.log("Server running on http://localhost:8000/");
