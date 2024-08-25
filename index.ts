@@ -44,8 +44,9 @@ serve(async (req) => {
     try {
       const projects: any[] = [];
 
-      // Fetch all projects and sort them by projectId in descending order
-      for await (const [key, value] of kv.list({ prefix: ["projects"] })) {
+      // Fetch all projects from the database
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        const [key, value] = entry;
         projects.push({ projectId: key[1], ...value });
       }
 
