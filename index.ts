@@ -43,6 +43,9 @@ serve(async (req) => {
   if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
+      const limit = 20;
+      const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+
       for await (const entry of kv.list({ prefix: ["projects"] })) {
         const key = entry.key;
         const value = entry.value;
@@ -50,13 +53,37 @@ serve(async (req) => {
       }
 
       projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
-      const latestProjects = projects.slice(0, 20);
+      const paginatedProjects = projects.slice(offset, offset + limit);
 
-      return new Response(JSON.stringify({ status: "success", projects: latestProjects }), { status: 200 });
+      return new Response(JSON.stringify({ status: "success", projects: paginatedProjects }), { status: 200 });
 
     } catch (error) {
       console.error("Error fetching projects:", error);
       return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), { status: 500 });
+    }
+  }
+
+  if (path === "/info" && req.method === "GET") {
+    try {
+      const projectId = url.searchParams.get("projectId");
+
+      if (!projectId) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { status: 400 });
+      }
+
+      const key = ["projects", projectId];
+      const result = await kv.get(key);
+
+      if (result?.value) {
+        const { File, Email, ...projectDetails } = result.value;
+        return new Response(JSON.stringify({ status: "success", project: projectDetails }), { status: 200 });
+      } else {
+        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { status: 404 });
+      }
+
+    } catch (error) {
+      console.error("Error fetching project details:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch project details." }), { status: 500 });
     }
   }
 
@@ -69,7 +96,7 @@ serve(async (req) => {
         projects.push({ projectId: key[1], ...value });
       }
 
-      projects.sort((a, b) => parseInt(a.Download) - parseInt(b.Download));
+      projects.sort((a, b) => parseInt(b.Download) - parseInt(a.Download));
       const topProjects = projects.slice(0, 10);
 
       return new Response(JSON.stringify({ status: "success", projects: topProjects }), { status: 200 });
