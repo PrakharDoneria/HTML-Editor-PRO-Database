@@ -76,7 +76,12 @@ serve(async (req) => {
 
       if (result?.value) {
         const { File, Email, ...projectDetails } = result.value;
-        return new Response(JSON.stringify({ status: "success", project: projectDetails }), { status: 200 });
+        const response = {
+          status: "success",
+          projectId: projectId,
+          ...projectDetails
+        };
+        return new Response(JSON.stringify(response), { status: 200 });
       } else {
         return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { status: 404 });
       }
@@ -203,3 +208,4 @@ serve(async (req) => {
 });
 
 console.log("Server running on http://localhost:8000/");
+    
