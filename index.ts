@@ -11,7 +11,6 @@ async function getNextProjectId(): Promise<number> {
   return nextId;
 }
 
-// CORS headers to be added to all responses
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -22,7 +21,6 @@ serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname;
 
-  // Handle OPTIONS preflight requests for CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
   }
@@ -289,3 +287,12 @@ serve(async (req) => {
 });
 
 console.log("Server running on http://localhost:8000/");
+
+Deno.cron("Reset download counts on the 1st day of every month", "0 0 1 * *", async () => {
+  console.log("Resetting download counts...");
+  for await (const entry of kv.list({ prefix: ["projects"] })) {
+    const key = entry.key;
+    const value = entry.value;
+    await kv.set(key, { ...value, Download: "0" });
+  }
+});
