@@ -1,217 +1,158 @@
-# Project Management API
+### 1. **Save a Project**
+- **Endpoint:** `/save`
+- **Method:** `POST`
+- **Request Body:**
+  ```json
+  {
+    "url": "http://example.com/file.zip",
+    "projectName": "Sample Project",
+    "username": "user123",
+    "uid": "unique-user-id",
+    "verified": true,
+    "email": "user@example.com"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projectId": "1"
+  }
+  ```
 
-A simple API for managing and querying project data. This API allows you to save, retrieve, delete, and search for projects, as well as manage download counts and view leaderboards.
+### 2. **Get Projects**
+- **Endpoint:** `/projects`
+- **Method:** `GET`
+- **Query Parameters:** 
+  - `offset` (optional): Start fetching projects from a specific index, e.g., `/projects?offset=20`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projects": [
+      {
+        "projectId": "1",
+        "File": "http://example.com/file.zip",
+        "FileName": "Sample Project",
+        "Username": "user123",
+        "UID": "unique-user-id",
+        "Verified": true,
+        "Email": "user@example.com",
+        "Download": "0"
+      }
+    ]
+  }
+  ```
 
-## Endpoints
+### 3. **Get Project Details**
+- **Endpoint:** `/info`
+- **Method:** `GET`
+- **Query Parameters:** 
+  - `projectId` (required): The ID of the project, e.g., `/info?projectId=1`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projectId": "1",
+    "FileName": "Sample Project",
+    "Username": "user123",
+    "UID": "unique-user-id",
+    "Verified": true,
+    "Download": "0"
+  }
+  ```
 
-### `/save` (POST)
+### 4. **Increase Download Count**
+- **Endpoint:** `/increase`
+- **Method:** `GET`
+- **Query Parameters:** 
+  - `projectId` (required): The ID of the project, e.g., `/increase?projectId=1`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "download": "1"
+  }
+  ```
 
-Save a new project.
+### 5. **Search Projects**
+- **Endpoint:** `/search`
+- **Method:** `GET`
+- **Query Parameters:** 
+  - `q` (required): Search query, e.g., `/search?q=sample`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projects": [
+      {
+        "projectId": "1",
+        "File": "http://example.com/file.zip",
+        "FileName": "Sample Project",
+        "Username": "user123",
+        "Verified": true,
+        "Download": "0"
+      }
+    ]
+  }
+  ```
 
-**Request Body:**
-```json
-{
-  "url": "string",
-  "projectName": "string",
-  "username": "string",
-  "uid": "string",
-  "verified": "boolean",
-  "email": "string"
-}
-```
+### 6. **Delete a Project**
+- **Endpoint:** `/delete`
+- **Method:** `DELETE`
+- **Request Body:**
+  ```json
+  {
+    "projectId": "1",
+    "uid": "unique-user-id"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "message": "Project deleted."
+  }
+  ```
 
-**Response:**
-```json
-{
-  "status": "success",
-  "projectId": "string"
-}
-```
+### 7. **Get Leaderboard**
+- **Endpoint:** `/leaderboard`
+- **Method:** `GET`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projects": [
+      {
+        "projectId": "1",
+        "File": "http://example.com/file.zip",
+        "FileName": "Sample Project",
+        "Username": "user123",
+        "Verified": true,
+        "Download": "100"
+      }
+    ]
+  }
+  ```
 
-**Error Response:**
-```json
-{
-  "status": "error",
-  "message": "Failed to save project."
-}
-```
+### 8. **Clean Database**
+- **Endpoint:** `/clean`
+- **Method:** `GET`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "message": "Database cleaned."
+  }
+  ```
 
-### `/projects` (GET)
-
-Retrieve the latest 20 projects.
-
-**Response:**
-```json
-{
-  "status": "success",
-  "projects": [
-    {
-      "projectId": "string",
-      "File": "string",
-      "FileName": "string",
-      "Username": "string",
-      "UID": "string",
-      "Verified": "boolean",
-      "Email": "string",
-      "Download": "string"
-    }
-  ]
-}
-```
-
-**Error Response:**
-```json
-{
-  "status": "error",
-  "message": "Failed to fetch projects."
-}
-```
-
-### `/leaderboard` (GET)
-
-Retrieve the top 10 projects by download count.
-
-**Response:**
-```json
-{
-  "status": "success",
-  "projects": [
-    {
-      "projectId": "string",
-      "File": "string",
-      "FileName": "string",
-      "Username": "string",
-      "UID": "string",
-      "Verified": "boolean",
-      "Email": "string",
-      "Download": "string"
-    }
-  ]
-}
-```
-
-**Error Response:**
-```json
-{
-  "status": "error",
-  "message": "Failed to fetch leaderboard."
-}
-```
-
-### `/search` (GET)
-
-Search for projects by keywords.
-
-**Query Parameters:**
-- `q`: Search query string.
-
-**Response:**
-```json
-{
-  "status": "success",
-  "projects": [
-    {
-      "projectId": "string",
-      "File": "string",
-      "FileName": "string",
-      "Username": "string",
-      "UID": "string",
-      "Verified": "boolean",
-      "Email": "string",
-      "Download": "string"
-    }
-  ]
-}
-```
-
-**Error Response:**
-```json
-{
-  "status": "error",
-  "message": "Failed to search projects."
-}
-```
-
-### `/delete` (DELETE)
-
-Delete a project by ID.
-
-**Request Body:**
-```json
-{
-  "projectId": "string",
-  "uid": "string"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Project deleted."
-}
-```
-
-**Error Response:**
-```json
-{
-  "status": "error",
-  "message": "Unauthorized." // or "Project not found."
-}
-```
-
-### `/increase` (GET)
-
-Increment the download count for a project.
-
-**Query Parameters:**
-- `projectId`: The ID of the project to increment the download count.
-
-**Response:**
-```json
-{
-  "status": "success",
-  "download": "string"
-}
-```
-
-**Error Response:**
-```json
-{
-  "status": "error",
-  "message": "Failed to increase download count."
-}
-```
-
-### `/clean` (GET)
-
-Clean the database by removing all projects and resetting the project ID counter.
-
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Database cleaned."
-}
-```
-
-**Error Response:**
-```json
-{
-  "status": "error",
-  "message": "Failed to clean database."
-}
-```
-
-## Running the Server
-
-To start the server, run:
-
-```sh
-deno run --allow-net --allow-read --allow-write index.ts
-```
-
-## Notes
-
-- Ensure that Deno is installed and properly configured on your system.
-- Modify the `index.ts` path if necessary to match your file structure.
+### 9. **CORS Preflight Request**
+- **Endpoint:** `*`
+- **Method:** `OPTIONS`
+- **Response:**
+  ```http
+  HTTP/1.1 204 No Content
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+  ```
