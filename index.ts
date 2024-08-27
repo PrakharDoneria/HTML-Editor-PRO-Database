@@ -187,40 +187,49 @@ serve(async (req) => {
 
   if (path === "/delete" && req.method === "DELETE") {
     try {
-      const data = await req.json();
-      const { projectId, uid } = data;
-
-      const key = ["projects", projectId];
-      const result = await kv.get(key);
-
-      if (result?.value) {
-        if (result.value.UID === uid) {
-          await kv.delete(key);
-          return new Response(JSON.stringify({ status: "success", message: "Project deleted." }), { 
-            status: 200,
-            headers: CORS_HEADERS 
-          });
-        } else {
-          return new Response(JSON.stringify({ status: "error", message: "Unauthorized." }), { 
-            status: 403,
-            headers: CORS_HEADERS 
-          });
+        const bodyText = await req.text();  // Read the body as text
+        if (!bodyText) {
+            return new Response(JSON.stringify({ status: "error", message: "Missing request body." }), { 
+                status: 400,
+                headers: CORS_HEADERS 
+            });
         }
-      } else {
-        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
-          status: 404,
-          headers: CORS_HEADERS 
-        });
-      }
+
+        const data = JSON.parse(bodyText);  // Parse the JSON
+        const { projectId, uid } = data;
+
+        const key = ["projects", projectId];
+        const result = await kv.get(key);
+
+        if (result?.value) {
+            if (result.value.UID === uid) {
+                await kv.delete(key);
+                return new Response(JSON.stringify({ status: "success", message: "Project deleted." }), { 
+                    status: 200,
+                    headers: CORS_HEADERS 
+                });
+            } else {
+                return new Response(JSON.stringify({ status: "error", message: "Unauthorized." }), { 
+                    status: 403,
+                    headers: CORS_HEADERS 
+                });
+            }
+        } else {
+            return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+                status: 404,
+                headers: CORS_HEADERS 
+            });
+        }
 
     } catch (error) {
-      console.error("Error deleting project:", error);
-      return new Response(JSON.stringify({ status: "error", message: "Failed to delete project." }), { 
-        status: 500,
-        headers: CORS_HEADERS 
-      });
+        console.error("Error deleting project:", error);
+        return new Response(JSON.stringify({ status: "error", message: "Failed to delete project." }), { 
+            status: 500,
+            headers: CORS_HEADERS 
+        });
     }
   }
+  
 
   if (path === "/increase" && req.method === "GET") {
     try {
