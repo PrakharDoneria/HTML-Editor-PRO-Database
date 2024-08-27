@@ -85,6 +85,42 @@ serve(async (req) => {
     }
   }
 
+  if (path === "/verify" && req.method === "GET") {
+    try {
+        const projectId = url.searchParams.get("projectId");
+
+        if (!projectId) {
+            return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { 
+                status: 400,
+                headers: CORS_HEADERS 
+            });
+        }
+
+        const key = ["projects", projectId];
+        const result = await kv.get(key);
+
+        if (result?.value) {
+            await kv.set(key, { ...result.value, Verified: true });
+            return new Response(JSON.stringify({ status: "success", message: "Project verified." }), { 
+                status: 200,
+                headers: CORS_HEADERS 
+            });
+        } else {
+            return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+                status: 404,
+                headers: CORS_HEADERS 
+            });
+        }
+
+    } catch (error) {
+        console.error("Error verifying project:", error);
+        return new Response(JSON.stringify({ status: "error", message: "Failed to verify project." }), { 
+            status: 500,
+            headers: CORS_HEADERS 
+        });
+    }
+  }
+
   if (path === "/info" && req.method === "GET") {
     try {
       const projectId = url.searchParams.get("projectId");
