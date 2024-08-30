@@ -85,6 +85,49 @@ serve(async (req) => {
     }
   }
 
+    if (path === "/profile" && req.method === "GET") {
+    try {
+      const uid = url.searchParams.get("uid");
+
+      if (!uid) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing UID." }), { 
+          status: 400,
+          headers: CORS_HEADERS 
+        });
+      }
+
+      const projects: any[] = [];
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        const key = entry.key;
+        const value = entry.value;
+
+        if (value.UID === uid) {
+          projects.push({ projectId: key[1], ...value });
+        }
+      }
+
+      if (projects.length === 0) {
+        return new Response(JSON.stringify({ status: "error", message: "No projects found for this user." }), { 
+          status: 404,
+          headers: CORS_HEADERS 
+        });
+      }
+
+      return new Response(JSON.stringify({ status: "success", projects }), { 
+        status: 200,
+        headers: CORS_HEADERS 
+      });
+
+    } catch (error) {
+      console.error("Error fetching user's projects:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch user's projects." }), { 
+        status: 500,
+        headers: CORS_HEADERS 
+      });
+    }
+    }
+  
+
   if (path === "/verify" && req.method === "GET") {
     try {
         const projectId = url.searchParams.get("projectId");
