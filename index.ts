@@ -56,6 +56,43 @@ serve(async (req) => {
     }
   }
 
+  if (path === "/rename" && req.method === "PUT") {
+    try {
+      const { projectId, name } = await req.json();
+
+      if (!projectId || !name) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing projectId or name." }), { 
+          status: 400,
+          headers: CORS_HEADERS 
+        });
+      }
+
+      const key = ["projects", projectId];
+      const result = await kv.get(key);
+
+      if (result?.value) {
+        await kv.set(key, { ...result.value, FileName: name });
+        return new Response(JSON.stringify({ status: "success", message: "Project renamed successfully." }), { 
+          status: 200,
+          headers: CORS_HEADERS 
+        });
+      } else {
+        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+          status: 404,
+          headers: CORS_HEADERS 
+        });
+      }
+
+    } catch (error) {
+      console.error("Error renaming project:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to rename project." }), { 
+        status: 500,
+        headers: CORS_HEADERS 
+      });
+    }
+  }
+
+
   if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
