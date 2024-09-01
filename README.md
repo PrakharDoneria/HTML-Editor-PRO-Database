@@ -1,158 +1,145 @@
-### 1. **Save a Project**
-- **Endpoint:** `/save`
-- **Method:** `POST`
-- **Request Body:**
-  ```json
-  {
-    "url": "http://example.com/file.zip",
-    "projectName": "Sample Project",
-    "username": "user123",
-    "uid": "unique-user-id",
-    "verified": true,
-    "email": "user@example.com"
-  }
-  ```
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "projectId": "1"
-  }
-  ```
+# Project List API - Backend
 
-### 2. **Get Projects**
-- **Endpoint:** `/projects`
-- **Method:** `GET`
-- **Query Parameters:** 
-  - `offset` (optional): Start fetching projects from a specific index, e.g., `/projects?offset=20`
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "projects": [
-      {
-        "projectId": "1",
-        "File": "http://example.com/file.zip",
-        "FileName": "Sample Project",
-        "Username": "user123",
-        "UID": "unique-user-id",
-        "Verified": true,
-        "Email": "user@example.com",
-        "Download": "0"
-      }
-    ]
-  }
-  ```
+This backend service provides APIs to fetch and manage a list of projects. The service responds with project data, allowing a frontend application to display and interact with the projects.
 
-### 3. **Get Project Details**
-- **Endpoint:** `/info`
-- **Method:** `GET`
-- **Query Parameters:** 
-  - `projectId` (required): The ID of the project, e.g., `/info?projectId=1`
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "projectId": "1",
-    "FileName": "Sample Project",
-    "Username": "user123",
-    "UID": "unique-user-id",
-    "Verified": true,
-    "Download": "0"
-  }
-  ```
+## API Endpoints
 
-### 4. **Increase Download Count**
-- **Endpoint:** `/increase`
-- **Method:** `GET`
-- **Query Parameters:** 
-  - `projectId` (required): The ID of the project, e.g., `/increase?projectId=1`
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "download": "1"
-  }
-  ```
+### 1. `GET /projects`
 
-### 5. **Search Projects**
-- **Endpoint:** `/search`
-- **Method:** `GET`
-- **Query Parameters:** 
-  - `q` (required): Search query, e.g., `/search?q=sample`
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "projects": [
-      {
-        "projectId": "1",
-        "File": "http://example.com/file.zip",
-        "FileName": "Sample Project",
-        "Username": "user123",
-        "Verified": true,
-        "Download": "0"
-      }
-    ]
-  }
-  ```
+**Description**: Fetches a list of projects with pagination support.
 
-### 6. **Delete a Project**
-- **Endpoint:** `/delete`
-- **Method:** `DELETE`
-- **Request Body:**
-  ```json
-  {
-    "projectId": "1",
-    "uid": "unique-user-id"
-  }
-  ```
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "message": "Project deleted."
-  }
-  ```
+- **Request Parameters**:
+  - `offset` (query parameter, optional): Specifies the starting point of the data to fetch. Default is `0`.
 
-### 7. **Get Leaderboard**
-- **Endpoint:** `/leaderboard`
-- **Method:** `GET`
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "projects": [
-      {
-        "projectId": "1",
-        "File": "http://example.com/file.zip",
-        "FileName": "Sample Project",
-        "Username": "user123",
-        "Verified": true,
-        "Download": "100"
-      }
-    ]
-  }
-  ```
-
-### 8. **Clean Database**
-- **Endpoint:** `/clean`
-- **Method:** `GET`
-- **Response:**
-  ```json
-  {
-    "status": "success",
-    "message": "Database cleaned."
-  }
-  ```
-
-### 9. **CORS Preflight Request**
-- **Endpoint:** `*`
-- **Method:** `OPTIONS`
-- **Response:**
+- **Sample Request**:
   ```http
-  HTTP/1.1 204 No Content
-  Access-Control-Allow-Origin: *
-  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
-  Access-Control-Allow-Headers: Content-Type
+  GET https://htmleditorpro.deno.dev/projects?offset=20
   ```
+
+- **Sample Response**:
+  ```json
+  {
+    "projects": [
+      {
+        "File": "https://example.com/path/to/file.html",
+        "FileName": "Sample Project 1",
+        "Username": "user1",
+        "UID": "12345",
+        "Verified": true,
+        "Email": "user1@example.com",
+        "Download": "5",
+        "projectId": "proj1"
+      },
+      {
+        "File": "https://example.com/path/to/file2.html",
+        "FileName": "Sample Project 2",
+        "Username": "user2",
+        "UID": "67890",
+        "Verified": false,
+        "Email": "user2@example.com",
+        "Download": "10",
+        "projectId": "proj2"
+      }
+      // More projects...
+    ]
+  }
+  ```
+
+### 2. `POST /projects`
+
+**Description**: Adds a new project to the list.
+
+- **Request Body**:
+  - `File`: URL to the project file.
+  - `FileName`: Name of the project.
+  - `Username`: Username of the project creator.
+  - `UID`: Unique identifier for the user.
+  - `Verified`: Boolean indicating if the project is verified.
+  - `Email`: Email of the project creator.
+  - `Download`: Number of times the project has been downloaded.
+  - `projectId`: Unique identifier for the project.
+
+- **Sample Request**:
+  ```json
+  {
+    "File": "https://example.com/path/to/newproject.html",
+    "FileName": "New Project",
+    "Username": "newuser",
+    "UID": "11111",
+    "Verified": true,
+    "Email": "newuser@example.com",
+    "Download": "0",
+    "projectId": "newproj1"
+  }
+  ```
+
+- **Sample Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Project added successfully"
+  }
+  ```
+
+### 3. `PUT /projects/:projectId`
+
+**Description**: Updates details of an existing project.
+
+- **Request Parameters**:
+  - `projectId` (path parameter): Unique identifier of the project to update.
+
+- **Request Body**: Same as the `POST /projects` endpoint, but only the fields that need updating should be included.
+
+- **Sample Request**:
+  ```json
+  {
+    "FileName": "Updated Project Name"
+  }
+  ```
+
+- **Sample Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Project updated successfully"
+  }
+  ```
+
+### 4. `DELETE /projects/:projectId`
+
+**Description**: Deletes a project from the list.
+
+- **Request Parameters**:
+  - `projectId` (path parameter): Unique identifier of the project to delete.
+
+- **Sample Request**:
+  ```http
+  DELETE https://htmleditorpro.deno.dev/projects/proj1
+  ```
+
+- **Sample Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Project deleted successfully"
+  }
+  ```
+
+## Error Handling
+
+The API will return appropriate error messages for invalid requests, including:
+
+- **400 Bad Request**: For invalid parameters or missing required fields.
+- **404 Not Found**: If a project with the specified `projectId` does not exist.
+- **500 Internal Server Error**: For server-side errors.
+
+## Data Structure
+
+- **File**: String (URL to the HTML file).
+- **FileName**: String (Name of the project).
+- **Username**: String (Name of the user who created the project).
+- **UID**: String (Unique identifier of the user).
+- **Verified**: Boolean (Indicates if the project is verified).
+- **Email**: String (Email address of the user).
+- **Download**: String (Number of times the project has been downloaded).
+- **projectId**: String (Unique identifier of the project).
