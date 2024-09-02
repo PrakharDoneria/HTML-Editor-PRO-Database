@@ -1,131 +1,193 @@
-# Project List API - Backend
+# Project Management API
 
-This backend service provides APIs to manage and retrieve project information. It includes endpoints for fetching, adding, updating, and deleting projects. 
+## Endpoints
 
-## API Endpoints
+### 1. Save Project
 
-### 1. `GET /projects`
-
-**Description**: Retrieves a paginated list of projects.
-
-- **Query Parameters**:
-  - `offset` (optional): The starting point of the data to fetch. Defaults to `0`.
-
-- **Sample Request**:
-  ```http
-  GET /projects?offset=20
-  ```
-
-- **Sample Response**:
+- **Method:** `POST /save`
+- **Request Body:**
   ```json
   {
+    "url": "https://example.com/file.jpg",
+    "projectName": "My Project",
+    "username": "user123",
+    "uid": "user-unique-id",
+    "verified": false,
+    "email": "user@example.com"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projectId": "1"
+  }
+  ```
+
+### 2. Rename Project
+
+- **Method:** `PUT /rename`
+- **Request Body:**
+  ```json
+  {
+    "projectId": "1",
+    "name": "New Project Name"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "message": "Project renamed successfully."
+  }
+  ```
+
+### 3. Get Projects (Paginated)
+
+- **Method:** `GET /projects?offset=0`
+- **Response:**
+  ```json
+  {
+    "status": "success",
     "projects": [
       {
-        "File": "url-to-file",
-        "FileName": "Project Name",
-        "Username": "user",
-        "UID": "unique-id",
-        "Verified": true,
+        "projectId": "1",
+        "File": "https://example.com/file.jpg",
+        "FileName": "My Project",
+        "Username": "user123",
+        "UID": "user-unique-id",
+        "Verified": false,
         "Email": "user@example.com",
-        "Download": "number",
-        "projectId": "project-id"
+        "Download": "0"
       }
-      // More projects...
+    ],
+    "total": 10
+  }
+  ```
+
+### 4. Get User's Projects
+
+- **Method:** `GET /profile?uid=user-unique-id`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projects": [
+      {
+        "projectId": "1",
+        "File": "https://example.com/file.jpg",
+        "FileName": "My Project",
+        "Username": "user123",
+        "UID": "user-unique-id",
+        "Verified": false,
+        "Email": "user@example.com",
+        "Download": "0"
+      }
     ]
   }
   ```
 
-### 2. `POST /projects`
+### 5. Verify Project
 
-**Description**: Adds a new project to the database.
-
-- **Request Body**:
-  - `File`: URL to the project file.
-  - `FileName`: Name of the project.
-  - `Username`: Name of the project creator.
-  - `UID`: Unique user identifier.
-  - `Verified`: Boolean indicating if the project is verified.
-  - `Email`: Email of the project creator.
-  - `Download`: Number of downloads.
-  - `projectId`: Unique project identifier.
-
-- **Sample Request**:
+- **Method:** `GET /verify?projectId=1`
+- **Response:**
   ```json
   {
-    "File": "url-to-file",
-    "FileName": "New Project",
-    "Username": "creator",
-    "UID": "unique-id",
+    "status": "success",
+    "message": "Project verified."
+  }
+  ```
+
+### 6. Get Project Info
+
+- **Method:** `GET /info?projectId=1`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "projectId": "1",
+    "FileName": "My Project",
+    "Username": "user123",
+    "UID": "user-unique-id",
     "Verified": false,
-    "Email": "creator@example.com",
-    "Download": "0",
-    "projectId": "new-project-id"
+    "Download": "0"
   }
   ```
 
-- **Sample Response**:
+### 7. Get Leaderboard
+
+- **Method:** `GET /leaderboard`
+- **Response:**
   ```json
   {
-    "success": true,
-    "message": "Project added successfully"
+    "status": "success",
+    "projects": [
+      {
+        "projectId": "1",
+        "FileName": "My Project",
+        "Username": "user123",
+        "Download": "100"
+      }
+    ]
   }
   ```
 
-### 3. `PUT /projects/:projectId`
+### 8. Search Projects
 
-**Description**: Updates the details of an existing project.
-
-- **Path Parameter**:
-  - `projectId`: Unique identifier of the project to update.
-
-- **Request Body**: Fields to update. Example:
+- **Method:** `GET /search?q=my+project`
+- **Response:**
   ```json
   {
-    "FileName": "Updated Project Name"
+    "status": "success",
+    "projects": [
+      {
+        "projectId": "1",
+        "FileName": "My Project",
+        "Username": "user123",
+        "UID": "user-unique-id",
+        "Verified": false,
+        "Download": "0"
+      }
+    ]
   }
   ```
 
-- **Sample Response**:
+### 9. Delete Project
+
+- **Method:** `DELETE /delete`
+- **Request Body:**
   ```json
   {
-    "success": true,
-    "message": "Project updated successfully"
+    "projectId": "1",
+    "uid": "user-unique-id"
   }
   ```
-
-### 4. `DELETE /projects/:projectId`
-
-**Description**: Deletes a project.
-
-- **Path Parameter**:
-  - `projectId`: Unique identifier of the project to delete.
-
-- **Sample Request**:
-  ```http
-  DELETE /projects/project-id
-  ```
-
-- **Sample Response**:
+- **Response:**
   ```json
   {
-    "success": true,
-    "message": "Project deleted successfully"
+    "status": "success",
+    "message": "Project deleted."
   }
   ```
 
-## Error Handling
+### 10. Increase Download Count
 
-- **400 Bad Request**: Returned when invalid parameters are provided or required fields are missing.
-- **404 Not Found**: Returned when the specified project does not exist.
-- **500 Internal Server Error**: Returned when there is a server-side issue.
+- **Method:** `GET /increase?projectId=1`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "download": "1"
+  }
+  ```
 
-## Data Structure
+### 11. Clean Database
 
-- **File**: String (URL to the project file).
-- **FileName**: String (Name of the project).
-- **Username**: String (Name of the user who created the project).
-- **UID**: String (Unique user identifier).
-- **Verified**: Boolean (Indicates if the project is verified).
-- **Email**: String (Email address of the user).
-- **Download**: String (Number of times the project has been downloaded).
-- **projectId**: String (Unique project identifier).
+- **Method:** `GET /clean`
+- **Response:**
+  ```json
+  {
+    "status": "success",
+    "message": "Database cleaned."
+  }
+  ```
