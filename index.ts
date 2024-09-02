@@ -94,33 +94,43 @@ serve(async (req) => {
 
 
   if (path === "/projects" && req.method === "GET") {
-    try {
-      const projects: any[] = [];
-      const limit = 20;
-      const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+  try {
+    const projects: any[] = [];
+    const limit = 15;  // Set the limit to 15 projects per page
+    const offset = parseInt(url.searchParams.get("offset") || "0", 10);
 
-      for await (const entry of kv.list({ prefix: ["projects"] })) {
-        const key = entry.key;
-        const value = entry.value;
-        projects.push({ projectId: key[1], ...value });
-      }
-
-      projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
-      const paginatedProjects = projects.slice(offset, offset + limit);
-
-      return new Response(JSON.stringify({ status: "success", projects: paginatedProjects }), { 
-        status: 200,
-        headers: CORS_HEADERS 
-      });
-
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), { 
-        status: 500,
-        headers: CORS_HEADERS 
-      });
+    // Fetch all projects from the database
+    for await (const entry of kv.list({ prefix: ["projects"] })) {
+      const key = entry.key;
+      const value = entry.value;
+      projects.push({ projectId: key[1], ...value });
     }
+
+    // Sort projects by projectId in descending order
+    projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
+
+    // Paginate projects based on offset and limit
+    const paginatedProjects = projects.slice(offset, offset + limit);
+
+    return new Response(JSON.stringify({
+      status: "success",
+      projects: paginatedProjects,
+      total: projects.length  // Include the total number of projects for client-side pagination
+    }), {
+      status: 200,
+      headers: CORS_HEADERS
+    });
+
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), {
+      status: 500,
+      headers: CORS_HEADERS
+    });
   }
+}
+
+  
 
     if (path === "/profile" && req.method === "GET") {
     try {
