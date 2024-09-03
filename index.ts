@@ -95,7 +95,7 @@ serve(async (req) => {
   if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
-      const limit = 10;
+      const limit = 20;
       const offset = parseInt(url.searchParams.get("offset") || "0", 10);
 
       for await (const entry of kv.list({ prefix: ["projects"] })) {
