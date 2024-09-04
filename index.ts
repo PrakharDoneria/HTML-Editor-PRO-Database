@@ -125,6 +125,50 @@ serve(async (req) => {
     }
   }
 
+  if (path === "/renameProject" && req.method === "PUT") {
+  try {
+    const { projectId, name, uid } = await req.json();
+
+    if (!projectId || !name || !uid) {
+      return new Response(JSON.stringify({ status: "error", message: "Missing projectId, name, or UID." }), { 
+        status: 400,
+        headers: CORS_HEADERS 
+      });
+    }
+
+    const key = ["projects", projectId];
+    const result = await kv.get(key);
+
+    if (result?.value) {
+      if (result.value.UID !== uid) {
+        return new Response(JSON.stringify({ status: "error", message: "Unauthorized: UID does not match." }), { 
+          status: 403,
+          headers: CORS_HEADERS 
+        });
+      }
+
+      await kv.set(key, { ...result.value, FileName: name });
+      return new Response(JSON.stringify({ status: "success", message: "Project renamed successfully." }), { 
+        status: 200,
+        headers: CORS_HEADERS 
+      });
+    } else {
+      return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+        status: 404,
+        headers: CORS_HEADERS 
+      });
+    }
+
+  } catch (error) {
+    console.error("Error renaming project:", error);
+    return new Response(JSON.stringify({ status: "error", message: "Failed to rename project." }), { 
+      status: 500,
+      headers: CORS_HEADERS 
+    });
+  }
+  }
+  
+
   if (path === "/profile" && req.method === "GET") {
     try {
       const uid = url.searchParams.get("uid");
