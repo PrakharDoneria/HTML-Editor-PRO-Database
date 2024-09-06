@@ -265,7 +265,7 @@ serve(async (req) => {
     }
   }
 
-  if (path.startsWith("/del/") && req.method === "DELETE") {
+  if (path.startsWith("/del/") && req.method === "GET") {
   const projectId = path.split("/")[2];
 
   if (!projectId) {
