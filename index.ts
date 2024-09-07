@@ -122,6 +122,34 @@ serve(async (req) => {
     }
   }
 
+  if (path.startsWith("/del/") && req.method === "GET") {
+  const projectId = path.split("/")[2];
+
+  if (!projectId) {
+    return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { 
+      status: 400,
+      headers: CORS_HEADERS 
+    });
+  }
+
+  const key = ["projects", projectId];
+  const result = await kv.get(key);
+
+  if (result?.value) {
+    await kv.delete(key);
+    return new Response(JSON.stringify({ status: "success", message: "Project deleted successfully." }), { 
+      status: 200,
+      headers: CORS_HEADERS 
+    });
+  } else {
+    return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+      status: 404,
+      headers: CORS_HEADERS 
+    });
+  }
+  }
+  
+
     if (path === "/profile" && req.method === "GET") {
     try {
       const uid = url.searchParams.get("uid");
