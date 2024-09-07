@@ -6,9 +6,9 @@ const kv = await Deno.openKv();
 async function getNextProjectId(): Promise<number> {
   const idKey = ["meta", "nextProjectId"];
   const result = await kv.get(idKey);
-  const nextId = result?.value || 0;
-  await kv.set(idKey, nextId + 1);
-  return nextId;
+  const nextId = (result?.value ?? 0) + 1;
+  await kv.set(idKey, nextId);
+  return nextId; 
 }
 
 const CORS_HEADERS = {
@@ -78,7 +78,7 @@ serve(async (req) => {
         await kv.set(key, { ...result.value, Download: (downloadCount + 1).toString() });
         return new Response(JSON.stringify({ status: "success", download: (downloadCount + 1).toString() }), { status: 200 });
       } else {
-        await kv.set(key, { ...result.value, Download: "1" });
+        await kv.set(key, { Download: "1" });
         return new Response(JSON.stringify({ status: "success", download: "1" }), { status: 200 });
       }
 
@@ -292,30 +292,57 @@ serve(async (req) => {
   }
 
   if (path.startsWith("/del/") && req.method === "GET") {
-  const projectId = path.split("/")[2];
+    try {
+      const projectId = path.split("/")[2];
 
-  if (!projectId) {
-    return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { 
-      status: 400,
-      headers: CORS_HEADERS 
-    });
+      if (!projectId) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { 
+          status: 400,
+          headers: CORS_HEADERS 
+        });
+      }
+
+      const key = ["projects", projectId];
+      const result = await kv.get(key);
+
+      if (result?.value) {
+        await kv.delete(key);
+        return new Response(JSON.stringify({ status: "success", message: "Project deleted successfully." }), { 
+          status: 200,
+          headers: CORS_HEADERS 
+        });
+      } else {
+        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+          status: 404,
+          headers: CORS_HEADERS 
+        });
+      }
+    } catch (error) {
+      return new Response(JSON.stringify({ status: "error", message: "Failed to delete project." }), {
+        status: 500,
+        headers: CORS_HEADERS,
+      });
+    }
   }
 
-  const key = ["projects", projectId];
-  const result = await kv.get(key);
-
-  if (result?.value) {
-    await kv.delete(key);
-    return new Response(JSON.stringify({ status: "success", message: "Project deleted successfully." }), { 
-      status: 200,
-      headers: CORS_HEADERS 
-    });
-  } else {
-    return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
-      status: 404,
-      headers: CORS_HEADERS 
-    });
-  }
+  if (path === "/clean" && req.method === "GET") {
+    try {
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        await kv.delete(entry.key);
+      }
+      await kv.delete(["meta", "nextProjectId"]);
+      return new Response(JSON.stringify({ status: "success", message: "Database cleaned." }), { 
+        status: 200,
+        headers: CORS_HEADERS 
+      });
+      
+    } catch (error) {
+      console.error("Error cleaning database:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to clean database." }), { 
+        status: 500,
+        headers: CORS_HEADERS 
+      });
+    }
   }
 
   if (path === "/search" && req.method === "GET") {
@@ -341,9 +368,11 @@ serve(async (req) => {
     }
   }
 
-  return new Response("Not Found", { status: 404 });
+  return new Response("Not Found", { status: 404, headers: CORS_HEADERS });
+});
 
-  Deno.cron("Reset download counts on the 1st day of every month", "0 0 1 * *", async () => {
+// Cron job should be defined outside of the serve function
+Deno.cron("0 0 1 * *", async () => {
   console.log("Resetting download counts...");
   for await (const entry of kv.list({ prefix: ["projects"] })) {
     const key = entry.key;
