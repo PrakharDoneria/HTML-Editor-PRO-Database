@@ -421,5 +421,3 @@ Deno.cron("Reset download counts", "0 0 1 * *", async () => {
 });
 
 console.log("Server running on http://localhost:8000/");
-
-});
