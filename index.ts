@@ -92,6 +92,7 @@ serve(async (req) => {
     }
   }
 
+
   if (path === "/projects" && req.method === "GET") {
     try {
       const projects: any[] = [];
@@ -121,7 +122,7 @@ serve(async (req) => {
     }
   }
 
-  if (path === "/profile" && req.method === "GET") {
+    if (path === "/profile" && req.method === "GET") {
     try {
       const uid = url.searchParams.get("uid");
 
@@ -161,7 +162,8 @@ serve(async (req) => {
         headers: CORS_HEADERS 
       });
     }
-  }
+    }
+  
 
   if (path === "/verify" && req.method === "GET") {
     try {
@@ -301,7 +303,7 @@ serve(async (req) => {
 
   if (path === "/delete" && req.method === "DELETE") {
     try {
-        const bodyText = await req.text();
+        const bodyText = await req.text();  // Read the body as text
         if (!bodyText) {
             return new Response(JSON.stringify({ status: "error", message: "Missing request body." }), { 
                 status: 400,
@@ -309,7 +311,7 @@ serve(async (req) => {
             });
         }
 
-        const data = JSON.parse(bodyText);
+        const data = JSON.parse(bodyText);  // Parse the JSON
         const { projectId, uid } = data;
 
         const key = ["projects", projectId];
@@ -343,6 +345,7 @@ serve(async (req) => {
         });
     }
   }
+  
 
   if (path === "/increase" && req.method === "GET") {
     try {
@@ -366,7 +369,7 @@ serve(async (req) => {
           headers: CORS_HEADERS 
         });
       } else {
-        await kv.set(key, { Download: "1" });
+        await kv.set(key, { ...result.value, Download: "1" });
         return new Response(JSON.stringify({ status: "success", download: "1" }), { 
           status: 200,
           headers: CORS_HEADERS 
@@ -408,13 +411,15 @@ serve(async (req) => {
   });
 });
 
-console.log("Server running on http://localhost:8000/");
-
-Deno.cron("0 0 1 * *", async () => {
+Deno.cron("Reset download counts", "0 0 1 * *", async () => {
   console.log("Resetting download counts...");
   for await (const entry of kv.list({ prefix: ["projects"] })) {
     const key = entry.key;
     const value = entry.value;
     await kv.set(key, { ...value, Download: "0" });
   }
+});
+
+console.log("Server running on http://localhost:8000/");
+
 });
