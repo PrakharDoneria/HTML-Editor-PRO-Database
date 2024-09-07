@@ -6,9 +6,9 @@ const kv = await Deno.openKv();
 async function getNextProjectId(): Promise<number> {
   const idKey = ["meta", "nextProjectId"];
   const result = await kv.get(idKey);
-  const nextId = (result?.value ?? 0) + 1;
-  await kv.set(idKey, nextId);
-  return nextId; 
+  const nextId = result?.value || 0;
+  await kv.set(idKey, nextId + 1);
+  return nextId;
 }
 
 const CORS_HEADERS = {
@@ -28,110 +28,30 @@ serve(async (req) => {
   if (path === "/save" && req.method === "POST") {
     try {
       const data = await req.json();
-      const { uid } = data;
-
-      const isBanned = await kv.get(["bannedUsers", uid]);
-      if (isBanned?.value) {
-        return new Response(JSON.stringify({ status: "error", message: "User is banned." }), {
-          status: 403,
-          headers: CORS_HEADERS,
-        });
-      }
+      const { url: fileUrl, projectName, username, uid, verified, email } = data;
 
       const projectId = await getNextProjectId();
       const projectData = {
-        File: data.url,
-        FileName: data.projectName,
-        Username: data.username,
+        File: fileUrl,
+        FileName: projectName,
+        Username: username,
         UID: uid,
-        Verified: data.verified,
-        Email: data.email || "",
-        Download: "0",
+        Verified: verified,
+        Email: email || "",
+        Download: "0"
       };
 
       await kv.set(["projects", projectId.toString()], projectData);
-      return new Response(JSON.stringify({ status: "success", projectId: projectId.toString() }), {
+      return new Response(JSON.stringify({ status: "success", projectId: projectId.toString() }), { 
         status: 201,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
       });
+
     } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to save project." }), {
+      console.error("Error saving project:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to save project." }), { 
         status: 500,
-        headers: CORS_HEADERS,
-      });
-    }
-  }
-
-  if (path === "/increase" && req.method === "GET") {
-    try {
-      const projectId = url.searchParams.get("projectId");
-
-      if (!projectId) {
-        return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { status: 400 });
-      }
-
-      const key = ["projects", projectId];
-      const result = await kv.get(key);
-
-      if (result?.value) {
-        const downloadCount = parseInt(result.value.Download || "0", 10);
-        await kv.set(key, { ...result.value, Download: (downloadCount + 1).toString() });
-        return new Response(JSON.stringify({ status: "success", download: (downloadCount + 1).toString() }), { status: 200 });
-      } else {
-        await kv.set(key, { Download: "1" });
-        return new Response(JSON.stringify({ status: "success", download: "1" }), { status: 200 });
-      }
-
-    } catch (error) {
-      console.error("Error increasing download count:", error);
-      return new Response(JSON.stringify({ status: "error", message: "Failed to increase download count." }), { status: 500 });
-    }
-  }
-
-  if (path === "/ban" && req.method === "GET") {
-    try {
-      const uid = url.searchParams.get("uid");
-
-      if (!uid) {
-        return new Response(JSON.stringify({ status: "error", message: "Missing UID." }), {
-          status: 400,
-          headers: CORS_HEADERS,
-        });
-      }
-
-      await kv.set(["bannedUsers", uid], true);
-      return new Response(JSON.stringify({ status: "success", message: `User ${uid} banned.` }), {
-        status: 200,
-        headers: CORS_HEADERS,
-      });
-    } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to ban user." }), {
-        status: 500,
-        headers: CORS_HEADERS,
-      });
-    }
-  }
-
-  if (path === "/unban" && req.method === "GET") {
-    try {
-      const uid = url.searchParams.get("uid");
-
-      if (!uid) {
-        return new Response(JSON.stringify({ status: "error", message: "Missing UID." }), {
-          status: 400,
-          headers: CORS_HEADERS,
-        });
-      }
-
-      await kv.delete(["bannedUsers", uid]);
-      return new Response(JSON.stringify({ status: "success", message: `User ${uid} unbanned.` }), {
-        status: 200,
-        headers: CORS_HEADERS,
-      });
-    } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to unban user." }), {
-        status: 500,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
       });
     }
   }
@@ -139,50 +59,64 @@ serve(async (req) => {
   if (path === "/rename" && req.method === "PUT") {
     try {
       const { projectId, name } = await req.json();
+
+      if (!projectId || !name) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing projectId or name." }), { 
+          status: 400,
+          headers: CORS_HEADERS 
+        });
+      }
+
       const key = ["projects", projectId];
       const result = await kv.get(key);
 
       if (result?.value) {
         await kv.set(key, { ...result.value, FileName: name });
-        return new Response(JSON.stringify({ status: "success", message: "Project renamed successfully." }), {
+        return new Response(JSON.stringify({ status: "success", message: "Project renamed successfully." }), { 
           status: 200,
-          headers: CORS_HEADERS,
+          headers: CORS_HEADERS 
         });
       } else {
-        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), {
+        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
           status: 404,
-          headers: CORS_HEADERS,
+          headers: CORS_HEADERS 
         });
       }
+
     } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to rename project." }), {
+      console.error("Error renaming project:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to rename project." }), { 
         status: 500,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
       });
     }
   }
 
   if (path === "/projects" && req.method === "GET") {
     try {
-      const projects = [];
+      const projects: any[] = [];
       const limit = 20;
       const offset = parseInt(url.searchParams.get("offset") || "0", 10);
 
       for await (const entry of kv.list({ prefix: ["projects"] })) {
-        projects.push({ projectId: entry.key[1], ...entry.value });
+        const key = entry.key;
+        const value = entry.value;
+        projects.push({ projectId: key[1], ...value });
       }
 
       projects.sort((a, b) => parseInt(b.projectId) - parseInt(a.projectId));
       const paginatedProjects = projects.slice(offset, offset + limit);
 
-      return new Response(JSON.stringify({ status: "success", projects: paginatedProjects, total: projects.length }), {
+      return new Response(JSON.stringify({ status: "success", projects: paginatedProjects }), { 
         status: 200,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
       });
+
     } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), {
+      console.error("Error fetching projects:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch projects." }), { 
         status: 500,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
       });
     }
   }
@@ -190,110 +124,84 @@ serve(async (req) => {
   if (path === "/profile" && req.method === "GET") {
     try {
       const uid = url.searchParams.get("uid");
-      const projects = [];
 
+      if (!uid) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing UID." }), { 
+          status: 400,
+          headers: CORS_HEADERS 
+        });
+      }
+
+      const projects: any[] = [];
       for await (const entry of kv.list({ prefix: ["projects"] })) {
-        if (entry.value.UID === uid) {
-          projects.push({ projectId: entry.key[1], ...entry.value });
+        const key = entry.key;
+        const value = entry.value;
+
+        if (value.UID === uid) {
+          projects.push({ projectId: key[1], ...value });
         }
       }
 
       if (projects.length === 0) {
-        return new Response(JSON.stringify({ status: "error", message: "No projects found for this user." }), {
+        return new Response(JSON.stringify({ status: "error", message: "No projects found for this user." }), { 
           status: 404,
-          headers: CORS_HEADERS,
+          headers: CORS_HEADERS 
         });
       }
 
-      return new Response(JSON.stringify({ status: "success", projects }), {
+      return new Response(JSON.stringify({ status: "success", projects }), { 
         status: 200,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
       });
+
     } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch user's projects." }), {
+      console.error("Error fetching user's projects:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch user's projects." }), { 
         status: 500,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
       });
     }
   }
 
   if (path === "/verify" && req.method === "GET") {
     try {
-      const projectId = url.searchParams.get("projectId");
-      const key = ["projects", projectId];
-      const result = await kv.get(key);
+        const projectId = url.searchParams.get("projectId");
 
-      if (result?.value) {
-        await kv.set(key, { ...result.value, Verified: true });
-        return new Response(JSON.stringify({ status: "success", message: "Project verified." }), {
-          status: 200,
-          headers: CORS_HEADERS,
-        });
-      } else {
-        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), {
-          status: 404,
-          headers: CORS_HEADERS,
-        });
-      }
+        if (!projectId) {
+            return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { 
+                status: 400,
+                headers: CORS_HEADERS 
+            });
+        }
+
+        const key = ["projects", projectId];
+        const result = await kv.get(key);
+
+        if (result?.value) {
+            await kv.set(key, { ...result.value, Verified: true });
+            return new Response(JSON.stringify({ status: "success", message: "Project verified." }), { 
+                status: 200,
+                headers: CORS_HEADERS 
+            });
+        } else {
+            return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+                status: 404,
+                headers: CORS_HEADERS 
+            });
+        }
+
     } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to verify project." }), {
-        status: 500,
-        headers: CORS_HEADERS,
-      });
+        console.error("Error verifying project:", error);
+        return new Response(JSON.stringify({ status: "error", message: "Failed to verify project." }), { 
+            status: 500,
+            headers: CORS_HEADERS 
+        });
     }
   }
 
   if (path === "/info" && req.method === "GET") {
     try {
       const projectId = url.searchParams.get("projectId");
-      const key = ["projects", projectId];
-      const result = await kv.get(key);
-
-      if (result?.value) {
-        const { File, Email, ...projectDetails } = result.value;
-        return new Response(JSON.stringify({ status: "success", projectId, ...projectDetails }), {
-          status: 200,
-          headers: CORS_HEADERS,
-        });
-      } else {
-        return new Response(JSON.stringify({ status: "error", message: "Project not found." }), {
-          status: 404,
-          headers: CORS_HEADERS,
-        });
-      }
-    } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch project details." }), {
-        status: 500,
-        headers: CORS_HEADERS,
-      });
-    }
-  }
-
-  if (path === "/leaderboard" && req.method === "GET") {
-    try {
-      const projects = [];
-      for await (const entry of kv.list({ prefix: ["projects"] })) {
-        projects.push({ projectId: entry.key[1], ...entry.value });
-      }
-
-      projects.sort((a, b) => parseInt(b.Download) - parseInt(a.Download));
-      const topProjects = projects.slice(0, 10);
-
-      return new Response(JSON.stringify({ status: "success", projects: topProjects }), {
-        status: 200,
-        headers: CORS_HEADERS,
-      });
-    } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch leaderboard." }), {
-        status: 500,
-        headers: CORS_HEADERS,
-      });
-    }
-  }
-
-  if (path.startsWith("/del/") && req.method === "GET") {
-    try {
-      const projectId = path.split("/")[2];
 
       if (!projectId) {
         return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { 
@@ -306,8 +214,13 @@ serve(async (req) => {
       const result = await kv.get(key);
 
       if (result?.value) {
-        await kv.delete(key);
-        return new Response(JSON.stringify({ status: "success", message: "Project deleted successfully." }), { 
+        const { File, Email, ...projectDetails } = result.value;
+        const response = {
+          status: "success",
+          projectId: projectId,
+          ...projectDetails
+        };
+        return new Response(JSON.stringify(response), { 
           status: 200,
           headers: CORS_HEADERS 
         });
@@ -317,10 +230,154 @@ serve(async (req) => {
           headers: CORS_HEADERS 
         });
       }
+
     } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to delete project." }), {
+      console.error("Error fetching project details:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch project details." }), { 
         status: 500,
-        headers: CORS_HEADERS,
+        headers: CORS_HEADERS 
+      });
+    }
+  }
+
+  if (path === "/leaderboard" && req.method === "GET") {
+    try {
+      const projects: any[] = [];
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        const key = entry.key;
+        const value = entry.value;
+        projects.push({ projectId: key[1], ...value });
+      }
+
+      projects.sort((a, b) => parseInt(b.Download) - parseInt(a.Download));
+      const topProjects = projects.slice(0, 10);
+
+      return new Response(JSON.stringify({ status: "success", projects: topProjects }), { 
+        status: 200,
+        headers: CORS_HEADERS 
+      });
+
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to fetch leaderboard." }), { 
+        status: 500,
+        headers: CORS_HEADERS 
+      });
+    }
+  }
+
+  if (path === "/search" && req.method === "GET") {
+    try {
+      const query = (url.searchParams.get("q") || "").toLowerCase();
+      const projects: any[] = [];
+      
+      for await (const entry of kv.list({ prefix: ["projects"] })) {
+        const key = entry.key;
+        const value = entry.value;
+        const fileName = value.FileName.toLowerCase();
+        const username = value.Username.toLowerCase();
+        const email = value.Email.toLowerCase();
+
+        if (fileName.includes(query) || username.includes(query) || email.includes(query)) {
+          projects.push({ projectId: key[1], ...value });
+        }
+      }
+
+      const matchingProjects = projects.slice(0, 25);
+
+      return new Response(JSON.stringify({ status: "success", projects: matchingProjects }), { 
+        status: 200,
+        headers: CORS_HEADERS 
+      });
+
+    } catch (error) {
+      console.error("Error searching projects:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to search projects." }), { 
+        status: 500,
+        headers: CORS_HEADERS 
+      });
+    }
+  }
+
+  if (path === "/delete" && req.method === "DELETE") {
+    try {
+        const bodyText = await req.text();
+        if (!bodyText) {
+            return new Response(JSON.stringify({ status: "error", message: "Missing request body." }), { 
+                status: 400,
+                headers: CORS_HEADERS 
+            });
+        }
+
+        const data = JSON.parse(bodyText);
+        const { projectId, uid } = data;
+
+        const key = ["projects", projectId];
+        const result = await kv.get(key);
+
+        if (result?.value) {
+            if (result.value.UID === uid) {
+                await kv.delete(key);
+                return new Response(JSON.stringify({ status: "success", message: "Project deleted." }), { 
+                    status: 200,
+                    headers: CORS_HEADERS 
+                });
+            } else {
+                return new Response(JSON.stringify({ status: "error", message: "Unauthorized." }), { 
+                    status: 403,
+                    headers: CORS_HEADERS 
+                });
+            }
+        } else {
+            return new Response(JSON.stringify({ status: "error", message: "Project not found." }), { 
+                status: 404,
+                headers: CORS_HEADERS 
+            });
+        }
+
+    } catch (error) {
+        console.error("Error deleting project:", error);
+        return new Response(JSON.stringify({ status: "error", message: "Failed to delete project." }), { 
+            status: 500,
+            headers: CORS_HEADERS 
+        });
+    }
+  }
+
+  if (path === "/increase" && req.method === "GET") {
+    try {
+      const projectId = url.searchParams.get("projectId");
+
+      if (!projectId) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { 
+          status: 400,
+          headers: CORS_HEADERS 
+        });
+      }
+
+      const key = ["projects", projectId];
+      const result = await kv.get(key);
+
+      if (result?.value) {
+        const downloadCount = parseInt(result.value.Download || "0", 10);
+        await kv.set(key, { ...result.value, Download: (downloadCount + 1).toString() });
+        return new Response(JSON.stringify({ status: "success", download: (downloadCount + 1).toString() }), { 
+          status: 200,
+          headers: CORS_HEADERS 
+        });
+      } else {
+        await kv.set(key, { Download: "1" });
+        return new Response(JSON.stringify({ status: "success", download: "1" }), { 
+          status: 200,
+          headers: CORS_HEADERS 
+        });
+      }
+
+    } catch (error) {
+      console.error("Error increasing download count:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to increase download count." }), { 
+        status: 500,
+        headers: CORS_HEADERS 
       });
     }
   }
@@ -345,33 +402,14 @@ serve(async (req) => {
     }
   }
 
-  if (path === "/search" && req.method === "GET") {
-    try {
-      const query = url.searchParams.get("q");
-      const projects = [];
-
-      for await (const entry of kv.list({ prefix: ["projects"] })) {
-        if (entry.value.FileName.toLowerCase().includes(query.toLowerCase())) {
-          projects.push({ projectId: entry.key[1], ...entry.value });
-        }
-      }
-
-      return new Response(JSON.stringify({ status: "success", projects }), {
-        status: 200,
-        headers: CORS_HEADERS,
-      });
-    } catch (error) {
-      return new Response(JSON.stringify({ status: "error", message: "Failed to search projects." }), {
-        status: 500,
-        headers: CORS_HEADERS,
-      });
-    }
-  }
-
-  return new Response("Not Found", { status: 404, headers: CORS_HEADERS });
+  return new Response("Not Found", { 
+    status: 404,
+    headers: CORS_HEADERS 
+  });
 });
 
-// Cron job should be defined outside of the serve function
+console.log("Server running on http://localhost:8000/");
+
 Deno.cron("0 0 1 * *", async () => {
   console.log("Resetting download counts...");
   for await (const entry of kv.list({ prefix: ["projects"] })) {
