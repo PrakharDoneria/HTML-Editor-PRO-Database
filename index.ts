@@ -342,4 +342,12 @@ serve(async (req) => {
   }
 
   return new Response("Not Found", { status: 404 });
+
+  Deno.cron("Reset download counts on the 1st day of every month", "0 0 1 * *", async () => {
+  console.log("Resetting download counts...");
+  for await (const entry of kv.list({ prefix: ["projects"] })) {
+    const key = entry.key;
+    const value = entry.value;
+    await kv.set(key, { ...value, Download: "0" });
+  }
 });
