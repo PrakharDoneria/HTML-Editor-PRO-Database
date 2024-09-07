@@ -62,6 +62,32 @@ serve(async (req) => {
     }
   }
 
+  if (path === "/increase" && req.method === "GET") {
+    try {
+      const projectId = url.searchParams.get("projectId");
+
+      if (!projectId) {
+        return new Response(JSON.stringify({ status: "error", message: "Missing projectId." }), { status: 400 });
+      }
+
+      const key = ["projects", projectId];
+      const result = await kv.get(key);
+
+      if (result?.value) {
+        const downloadCount = parseInt(result.value.Download || "0", 10);
+        await kv.set(key, { ...result.value, Download: (downloadCount + 1).toString() });
+        return new Response(JSON.stringify({ status: "success", download: (downloadCount + 1).toString() }), { status: 200 });
+      } else {
+        await kv.set(key, { ...result.value, Download: "1" });
+        return new Response(JSON.stringify({ status: "success", download: "1" }), { status: 200 });
+      }
+
+    } catch (error) {
+      console.error("Error increasing download count:", error);
+      return new Response(JSON.stringify({ status: "error", message: "Failed to increase download count." }), { status: 500 });
+    }
+  }
+
   if (path === "/ban" && req.method === "GET") {
     try {
       const uid = url.searchParams.get("uid");
